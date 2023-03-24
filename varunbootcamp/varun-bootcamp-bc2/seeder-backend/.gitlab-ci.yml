@@ -1,0 +1,71 @@
+image: 
+   name: amazon/aws-cli
+   entrypoint: [""]   
+services:
+    - name: docker:20-dind
+      command: ["--tls=false"]
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay
+  DOCKER_TLS_CERTDIR: ""
+
+stages:
+    - Build image and Push to Docker Hub
+    - deploy
+docker build and push:
+    stage: Build image and Push to Docker Hub
+    only:
+        - deployment
+
+    before_script:
+        - amazon-linux-extras install docker
+        - aws --version
+        - docker --version
+        - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USER" --password-stdin
+    script:
+        - cd seeder-backend
+        - cd cashkick-service
+        - docker build . -t cashkick22:1
+        - docker tag cashkick22:1 "$REGISTRY_USER"/cashkick_22:1
+        - docker push "$REGISTRY_USER"/cashkick_22:1
+        - cd ..
+        - cd contract-service
+        - docker build . -t contract22:1
+        - docker tag contract22:1 "$REGISTRY_USER"/contract_22:1
+        - docker push "$REGISTRY_USER"/contract_22:1 
+        - cd .. 
+        - cd notification-service
+        - docker build . -t notification22:1
+        - docker tag notification22:1 "$REGISTRY_USER"/notification_22:1
+        - docker push "$REGISTRY_USER"/notification_22:1 
+        - cd ..
+        - cd reporting-service
+        - docker build . -t reporting22:1
+        - docker tag reporting22:1 "$REGISTRY_USER"/reporting_22:1
+        - docker push "$REGISTRY_USER"/reporting_22:1
+        - cd ..
+        - cd user-service
+        - docker build . -t user22:1
+        - docker tag user22:1 "$REGISTRY_USER"/user_22:1
+        - docker push "$REGISTRY_USER"/user_22:1
+    environment:
+       name: staging
+       url:
+deploy:
+  stage: deploy  
+  image: kroniak/ssh-client
+   
+  before_script:
+      - mkdir ~/.ssh
+      - echo -e "$KEY_PAIR" > ~/.ssh/id_rsa
+      - chmod 600 ~/.ssh/id_rsa
+      - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  script: 
+    - ssh ubuntu@3.135.233.218 "sudo docker-compose up -d"   
+    - exit  
+  only:
+    - deployment
+  environment:
+      name: production
+      url: 

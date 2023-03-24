@@ -1,0 +1,4 @@
+include:
+  # - "/seeder-react-ts/.gitlab-ci.yml"
+  - "/seeder-backend/.gitlab-ci.yml"
+ 
